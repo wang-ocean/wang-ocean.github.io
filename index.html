@@ -679,7 +679,10 @@
       localStorage.setItem(SYNC_KEY, now); lastSynced = now;
       if (!active && records[0]) setActive(records[0]);
       renderBody(); renderGallery();
-    }).catch(function () { errorMsg = "同步未完成，请检查网络后重试。"; renderError(); })
+    }).catch(function () {
+      if (!records.length) { errorMsg = "同步未完成，请检查网络后重试。"; renderError(); }
+      else { setNote("已加载本地档案 · 实时刷新暂不可用"); }
+    })
       .finally(function () { isSyncing = false; setSyncUI(); renderBody(); });
   }
   function collectAllHistory() {
@@ -818,11 +821,26 @@
     if (records.length) {
       setActive(records[0]);
       $("dateInput").value = records[0].date;
+      setSyncUI();
+      syncLatest();
     } else {
       renderBody();
+      setSyncUI();
+      seedArchiveThenSync();
     }
-    setSyncUI();
-    syncLatest();
+  }
+  // 冷启动：先读同源完整档案（与页面同域名，iPad 只要打得开页面就一定载得进），再尝试实时刷新
+  function seedArchiveThenSync() {
+    fetchWithTimeout("archive.json", 20000).then(function (res) { return res && res.ok ? res.json() : []; })
+      .then(function (list) {
+        if (Array.isArray(list) && list.length) commit(merge([], list));
+        if (!records.length) return;
+        if (!active || !records.some(function (r) { return r.date === active.date; })) setActive(records[0]);
+        $("dateInput").value = records[0].date;
+        renderBody(); renderGallery();
+        setNote("已载入完整档案 " + records.length.toLocaleString("zh-CN") + " 天");
+      }).catch(function () {})
+      .finally(function () { setSyncUI(); syncLatest(); });
   }
   window.addEventListener("error", function () {
     try { var l = $("syncLabel"); if (l) { l.textContent = "脚本出错 · 浏览器过旧或不兼容，请升级系统/浏览器后重试"; l.style.color = "#ff5a3c"; } } catch (_) {}
