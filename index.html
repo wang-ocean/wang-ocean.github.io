@@ -461,11 +461,19 @@
     return it.url;
   }
   /* 平板/视网膜屏（设备像素比>=1.4）直接加载 UHD 超清原图，其余设备保持 1080p 预览，兼顾清晰与流畅 */
+  function hiDpi() { return (window.devicePixelRatio || 1) >= 1.4; }
   function bestPreviewUrl(it) {
     var full = it.bing_url || (it.url && it.url.indexOf("_1920x1080") >= 0 ? it.url.replace("_1920x1080.jpg", "_UHD.jpg") : it.url);
-    var hiDpi = (window.devicePixelRatio || 1) >= 1.4;
-    return hiDpi ? full : previewUrl(it);
+    return hiDpi() ? full : previewUrl(it);
   }
+  /* 全屏查看/封面/下载用的高清地址：高像素屏取 UHD 原图（最清晰），其余设备维持 1080p */
+  function uhdUrl(it) {
+    var u = it.bing_url || it.url;
+    if (u && u.indexOf("_UHD.jpg") >= 0) return u;
+    if (u && u.indexOf("_1920x1080") >= 0) return u.replace("_1920x1080.jpg", "_UHD.jpg");
+    return u;
+  }
+  function screenUrl(it) { return hiDpi() ? uhdUrl(it) : it.url; }
   function pad(n) { return String(n).padStart(2, "0"); }
 
   // ---------- fetch ----------
@@ -512,11 +520,12 @@
   function setActive(w) {
     active = w;
     activeIndex = records.findIndex(function (it) { return it.date === w.date; });
-    if (!coverCache[w.url]) {
+    var cu = screenUrl(w);
+    if (!coverCache[cu]) {
       showLoader(true);
-      preload(w.url, function () { if (active && active.date === w.date) { showLoader(false); reveal(w.url); } });
+      preload(cu, function () { if (active && active.date === w.date) { showLoader(false); reveal(cu); } });
     } else {
-      reveal(w.url);
+      reveal(cu);
     }
   }
   function reveal(url) {
@@ -550,7 +559,7 @@
     $("locValue").textContent = getPlace(active);
     $("creditValue").textContent = getCredit(active);
     $("storyValue").textContent = getStory(active);
-    $("btnDownload").href = active.url;
+    $("btnDownload").href = screenUrl(active);
     if (active.bing_url) { $("btnSource").href = active.bing_url; $("btnSource").style.display = ""; $("storySource").href = active.bing_url; } else { $("btnSource").style.display = "none"; $("storySource").style.display = "none"; }
     var fav = favorites.indexOf(date) >= 0;
     $("favLabel").textContent = fav ? "已收藏" : "收藏";
@@ -718,7 +727,7 @@
   }
   function openViewerInternal(w) {
     viewerDate = w.date;
-    $("viewerImg").src = w.url;
+    $("viewerImg").src = screenUrl(w);
     $("viewerImg").alt = getLabel(w);
     $("viewerDate").textContent = "DATE / " + w.date.replace(/-/g, ".");
     $("viewerLabel").textContent = getLabel(w);
