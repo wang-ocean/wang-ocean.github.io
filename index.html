@@ -384,7 +384,7 @@
   var FAVORITES_KEY = "north-latitude-wallpaper-favorites-v1";
   var MIN_ARCHIVE_DATE = "2010-01-01";
   var CN_ARCHIVE_START = "2024-04-03";
-  var EXTENDED_URL = "https://raw.githubusercontent.com/zenghongtu/bing-wallpaper/main/json/data.json";
+  var EXTENDED_URL = "https://gcore.jsdelivr.net/gh/zenghongtu/bing-wallpaper@main/json/data.json";
   var EARLY_URL = "https://bing.npanuhin.me/US-en.min.json";
   var BASE = "https://bing.npanuhin.me";
 
@@ -686,9 +686,10 @@
     $("collectLabel").textContent = "正在收存";
     $("collectSpinner").classList.remove("hidden"); $("collectArrow").classList.add("hidden");
     setNote("正在收存 2010 年起的完整影像目录");
-    fetchExtended().then(function (ext) {
+    Promise.all([fetchExtended(), fetchEarly()]).then(function (a) {
+      var ext = a[0], early = a[1];
       setNote("正在补齐 2010–2019 年的早期影像目录");
-      return fetchEarly().then(function (early) { return merge(early, merge(ext, records)); });
+      return merge(early, merge(ext, records));
     }).then(function (merged) {
       commit(merged);
       if (!active && merged[0]) setActive(merged[0]);
