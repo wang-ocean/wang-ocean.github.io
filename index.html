@@ -456,31 +456,38 @@
     if (it.subtitle && it.subtitle.trim() && it.subtitle !== getLabel(it)) return it.subtitle.trim();
     return "此历史记录未提供详细图注。可通过图片来源查看原始 Bing 条目与版权信息。";
   }
+  /* 归一化到 Bing 中国（cn.bing.com）——在多数国内网络最稳，且同样提供 UHD 原图 */
+  function cnHost(u) {
+    if (!u || u.indexOf("bing.com/th?id=") < 0) return u;
+    var seed = u.replace(/^https:\/\/[^\/]+\//, "https://cn.bing.com/");
+    if (seed.indexOf("_UHD.jpg") < 0 && seed.indexOf("_1920x1080") >= 0) seed = seed.replace("_1920x1080.jpg", "_UHD.jpg");
+    return seed;
+  }
   function previewUrl(it) {
-    if (it.bing_url && it.bing_url.indexOf("_UHD.jpg") >= 0) return it.bing_url.replace("_UHD.jpg", "_1920x1080.jpg");
+    if (it.bing_url && it.bing_url.indexOf("_UHD.jpg") >= 0) return cnHost(it.bing_url.replace("_UHD.jpg", "_1920x1080.jpg"));
     return it.url;
   }
   /* 平板/视网膜屏（设备像素比>=1.4）直接加载 UHD 超清原图，其余设备保持 1080p 预览，兼顾清晰与流畅 */
   function hiDpi() { return (window.devicePixelRatio || 1) >= 1.4; }
   function bestPreviewUrl(it) {
-    var full = it.bing_url || (it.url && it.url.indexOf("_1920x1080") >= 0 ? it.url.replace("_1920x1080.jpg", "_UHD.jpg") : it.url);
+    var full = cnHost(it.bing_url) || (it.url && it.url.indexOf("_1920x1080") >= 0 ? it.url.replace("_1920x1080.jpg", "_UHD.jpg") : it.url);
     return hiDpi() ? full : previewUrl(it);
   }
   /* 最高分辨率地址：取当前数据源能给出的最大图（Bing UHD 约 3840px，退路为原图） */
   function uhdUrl(it) {
-    var u = it.bing_url || it.url;
+    var u = cnHost(it.bing_url) || it.url;
     if (u && u.indexOf("_UHD.jpg") >= 0) return u;
     if (u && u.indexOf("_1920x1080") >= 0) return u.replace("_1920x1080.jpg", "_UHD.jpg");
     if (u && u.indexOf("bingw.jasonzeng.dev") >= 0) return u.replace(/resolution=1920x1080/, "resolution=UHD");
     return u;
   }
   function screenUrl(it) { return hiDpi() ? uhdUrl(it) : it.url; }
-  /* 下载专用：无条件取最高分辨率。Bing th 链接显式追加 3840x2160 参数（远高于 1080p），
+  /* 下载专用：无条件取最高分辨率。Bing th 链接归一化到 cn.bing.com 且显式追加 3840x2160 参数，
      jasonzeng 镜像请求 UHD，其他保留原图 */
   function maxUrl(it) {
     var u = it.bing_url || it.url;
     if (u && u.indexOf("bing.com/th?id=") >= 0) {
-      var seed = u;
+      var seed = cnHost(u);
       if (seed.indexOf("_UHD.jpg") < 0 && seed.indexOf("_1920x1080") >= 0) seed = seed.replace("_1920x1080.jpg", "_UHD.jpg");
       seed = seed.split("&")[0];
       return seed + "&w=3840&h=2160&rs=1&qlt=100&pid=hp";
