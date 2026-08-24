@@ -466,14 +466,28 @@
     var full = it.bing_url || (it.url && it.url.indexOf("_1920x1080") >= 0 ? it.url.replace("_1920x1080.jpg", "_UHD.jpg") : it.url);
     return hiDpi() ? full : previewUrl(it);
   }
-  /* 全屏查看/封面/下载用的高清地址：高像素屏取 UHD 原图（最清晰），其余设备维持 1080p */
+  /* 最高分辨率地址：取当前数据源能给出的最大图（Bing UHD 约 3840px，退路为原图） */
   function uhdUrl(it) {
     var u = it.bing_url || it.url;
     if (u && u.indexOf("_UHD.jpg") >= 0) return u;
     if (u && u.indexOf("_1920x1080") >= 0) return u.replace("_1920x1080.jpg", "_UHD.jpg");
+    if (u && u.indexOf("bingw.jasonzeng.dev") >= 0) return u.replace(/resolution=1920x1080/, "resolution=UHD");
     return u;
   }
   function screenUrl(it) { return hiDpi() ? uhdUrl(it) : it.url; }
+  /* 下载专用：无条件取最高分辨率。Bing th 链接显式追加 3840x2160 参数（远高于 1080p），
+     jasonzeng 镜像请求 UHD，其他保留原图 */
+  function maxUrl(it) {
+    var u = it.bing_url || it.url;
+    if (u && u.indexOf("bing.com/th?id=") >= 0) {
+      var seed = u;
+      if (seed.indexOf("_UHD.jpg") < 0 && seed.indexOf("_1920x1080") >= 0) seed = seed.replace("_1920x1080.jpg", "_UHD.jpg");
+      seed = seed.split("&")[0];
+      return seed + "&w=3840&h=2160&rs=1&qlt=100&pid=hp";
+    }
+    if (u && u.indexOf("bingw.jasonzeng.dev") >= 0) return u.replace(/resolution=1920x1080/, "resolution=UHD");
+    return u;
+  }
   function pad(n) { return String(n).padStart(2, "0"); }
 
   // ---------- fetch ----------
@@ -559,7 +573,7 @@
     $("locValue").textContent = getPlace(active);
     $("creditValue").textContent = getCredit(active);
     $("storyValue").textContent = getStory(active);
-    $("btnDownload").href = screenUrl(active);
+    $("btnDownload").href = maxUrl(active);
     if (active.bing_url) { $("btnSource").href = active.bing_url; $("btnSource").style.display = ""; $("storySource").href = active.bing_url; } else { $("btnSource").style.display = "none"; $("storySource").style.display = "none"; }
     var fav = favorites.indexOf(date) >= 0;
     $("favLabel").textContent = fav ? "已收藏" : "收藏";
