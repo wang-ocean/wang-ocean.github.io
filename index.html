@@ -1,0 +1,802 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>北纬光廊 · Bing 每日壁纸观测站</title>
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --ink: #1b1b1a;
+    --obs: #ef5b2a;
+    --obs-dark: #c94920;
+    --obs-deep: #9f3514;
+    --dark: #101312;
+    --panel: #24302d;
+    --ink-soft: #55524c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  button { cursor: pointer; background: none; border: none; color: inherit; font: inherit; }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  body {
+    font-family: "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .serif { font-family: "Source Han Serif SC", "Noto Serif SC", "Songti SC", STSong, "SimSun", serif; }
+  .mono { font-family: ui-monospace, "SFMono-Regular", Consolas, "Cascadia Mono", monospace; }
+
+  /* ---- Header ---- */
+  header {
+    position: fixed; inset: 0 0 auto 0; z-index: 30;
+    background: rgba(16,19,18,.42); border-bottom: 1px solid rgba(255,255,255,.15);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); color: #fff;
+  }
+  .hwrap { max-width: 1440px; margin: 0 auto; height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brandmark { width: 40px; height: 40px; border-radius: 8px; display: grid; place-items: center; background: linear-gradient(140deg, #24302d, #3c4b47); border: 1px solid rgba(255,255,255,.12); transition: transform .2s; }
+  .brand:hover .brandmark { transform: rotate(6deg) scale(1.04); }
+  .wordmark { position: relative; display: inline-flex; font-size: 20px; letter-spacing: .12em; line-height: 1.1; }
+  .wordmark::after { content: ""; position: absolute; right: -8px; top: 1px; height: calc(100% - 2px); width: 1px; background: var(--obs); }
+  .wordmark::before { content: ""; position: absolute; right: -19px; top: 34%; height: 6px; width: 6px; background: var(--obs); }
+  .subtag { margin-top: 3px; font-size: 8px; letter-spacing: .15em; color: rgba(255,255,255,.55); }
+  .sync { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: .12em; color: rgba(255,255,255,.65); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,.55); }
+  .dot.sync { background: var(--obs); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+  .shell { background-image: repeating-linear-gradient(45deg, rgba(120,110,90,.035) 0 1px, transparent 1px 7px); }
+
+  /* ---- Hero cover ---- */
+  .hero { position: relative; min-height: 100svh; overflow: hidden; background: var(--panel); }
+  .cover-layer { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+  .cover-held { opacity: 1; }
+  .cover-exit { animation: cfade .34s ease both; }
+  .cover-enter { animation: fadefrom .9s ease both; }
+  .cover-pending { opacity: 0; }
+  @keyframes cfade { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes fadefrom { from { opacity: 0; } to { opacity: 1; } }
+  .hero-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(12,17,17,.78) 0%, rgba(12,17,17,.22) 45%, rgba(12,17,17,.05) 70%), linear-gradient(0deg, rgba(12,17,17,.65) 0%, transparent 42%); }
+  .cover-zoomzone { position: absolute; inset: 0; z-index: 1; cursor: zoom-in; }
+  .navbtn {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 20;
+    width: 40px; height: 40px; display: grid; place-items: center;
+    border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.2); color: #fff;
+    backdrop-filter: blur(4px); transition: background .15s, opacity .15s;
+    opacity: .85;
+  }
+  .navbtn:hover { background: rgba(0,0,0,.45); }
+  .navbtn:disabled { opacity: .25; cursor: not-allowed; }
+  .navbtn.l { left: 12px; } .navbtn.r { right: 12px; }
+  .navbtn svg { width: 20px; height: 20px; }
+  @media (min-width: 768px) {
+    .navbtn { width: 52px; height: 52px; }
+    .navbtn.l { left: 28px; } .navbtn.r { right: 28px; }
+    .navbtn svg { width: 26px; height: 26px; }
+  }
+  .cover-loader { position: absolute; inset: 0; z-index: 10; display: grid; place-items: center; background: rgba(23,32,31,.35); backdrop-filter: blur(2px); }
+  .cover-loader span { display: inline-flex; align-items: center; gap: 12px; border: 1px solid rgba(255,255,255,.3); background: rgba(0,0,0,.2); padding: 12px 16px; color: rgba(255,255,255,.9); font-size: 10px; letter-spacing: .13em; }
+  .spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hero-content { position: relative; z-index: 3; display: flex; flex-direction: column; justify-content: flex-end; min-height: 100svh; padding: 20px 20px 32px; color: #fff; }
+  .hero-inner { width: 100%; max-width: 900px; }
+  .hero-date { font-size: 10px; letter-spacing: .12em; color: rgba(255,255,255,.6); }
+  .hero-title { margin-top: 8px; font-size: clamp(32px, 7vw, 64px); line-height: 1.02; letter-spacing: -.05em; }
+  @media (min-width: 768px) {
+    .hero-content { padding: 48px 56px 56px; }
+    .hero-title { font-size: clamp(40px, 6vw, 72px); }
+    .hero-date { font-size: 12px; }
+    .obs-corner { padding-top: 104px; }
+  }
+  @media (min-width: 1024px) {
+    .hero-content { padding: 64px 72px 64px; }
+    .hero-title { font-size: clamp(48px, 5.5vw, 84px); }
+  }
+  .hero-actions { margin-top: 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+  .btn-dl { display: inline-flex; align-items: center; gap: 8px; background: var(--obs); padding: 12px 16px; font-size: 12px; font-weight: 600; letter-spacing: .06em; color: #fff; transition: background .15s, transform .1s; }
+  .btn-dl:hover { background: var(--obs-dark); }
+  .btn-dl:active { transform: scale(.97); }
+  .btn-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: rgba(255,255,255,.85); }
+  .btn-link:hover { color: #fff; }
+  .btn-fav { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: rgba(255,255,255,.85); }
+  .btn-fav.on { color: #ffd4c4; }
+  .btn-fav .heartfill { fill: currentColor; }
+  .obs-corner { position: absolute; inset: 0 0 auto; z-index: 8; max-width: 1440px; margin: 0 auto; padding: 96px 20px 0; }
+  .obs-badge { display: inline-block; position: relative; border-left: 1px solid rgba(255,255,255,.3); padding-left: 16px; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,.35); }
+  .obs-badge::before { content: ""; position: absolute; left: -6px; top: 0; width: 12px; height: 12px; background: var(--obs); }
+  .obs-badge span { font-size: 10px; letter-spacing: .16em; color: #ffd4c4; }
+
+  .container { max-width: 1440px; margin: 0 auto; padding: 0 20px 64px; }
+  .pt { padding-top: 32px; }
+  @media (min-width: 768px) { .container { padding: 0 40px 80px; } .pt { padding-top: 48px; } }
+  @media (min-width: 1440px) { .container { padding: 0 56px 96px; } }
+
+  /* 触屏设备去掉点击高亮，观感更干净 */
+  * { -webkit-tap-highlight-color: transparent; }
+  @media (hover: none) {
+    .gallery, .favgrid { -webkit-overflow-scrolling: touch; }
+  }
+
+  /* ---- Section scaffolding ---- */
+  .sec { display: grid; gap: 20px; border-top: 1px solid rgba(0,0,0,.1); padding-top: 20px; margin-top: 20px; }
+  @media (min-width: 1024px) { .sec { grid-template-columns: 230px minmax(0,1fr); gap: 32px; } }
+  .sechead { position: relative; padding: 4px 0 20px; border-bottom: 1px solid rgba(0,0,0,.1); }
+  @media (min-width: 1024px) {
+    .sechead { border-bottom: none; border-right: 1px solid rgba(0,0,0,.1); background: linear-gradient(90deg, rgba(239,91,42,.06), transparent 80%); padding: 0 32px 0 20px; margin-bottom: auto; }
+    .sec-body { padding: 0; }
+  }
+  .sechead .mark { position: absolute; left: 0; bottom: -6px; width: 12px; height: 12px; background: var(--obs); }
+  @media (min-width: 1024px) { .sechead .mark { left: auto; right: -6px; top: 4px; bottom: auto; } }
+  .seclabel { font-size: 10px; letter-spacing: .13em; color: var(--obs); text-transform: uppercase; }
+  .sec-title { margin-top: 12px; font-size: 30px; letter-spacing: -.04em; font-weight: 600; }
+  .secbody-pad { border-top: 1px solid rgba(0,0,0,.12); border-bottom: 1px solid rgba(0,0,0,.12); padding: 20px 0; }
+  @media (min-width: 768px) { .secbody-pad { padding: 24px 0; } }
+
+  .kv { display: grid; gap: 20px; }
+  @media (min-width: 640px) { .kv { grid-template-columns: 1fr 1fr; } }
+  .kv h4 { font-size: 10px; letter-spacing: .12em; color: rgba(0,0,0,.42); font-weight: 500; }
+  .kv .place { margin-top: 8px; font-size: 18px; line-height: 1.75; color: rgba(0,0,0,.78); }
+  .kv .credit { margin-top: 8px; font-size: 14px; line-height: 1.75; color: rgba(0,0,0,.62); }
+  .story { margin-top: 20px; border-top: 1px solid rgba(0,0,0,.1); padding-top: 20px; }
+  .story h4 { font-size: 10px; letter-spacing: .12em; color: rgba(0,0,0,.42); font-weight: 500; }
+  .story p { margin-top: 8px; max-width: 900px; font-size: 14px; line-height: 1.75; color: rgba(0,0,0,.68); white-space: pre-line; }
+  .story a { margin-top: 16px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--obs-dark); }
+  .story a:hover { color: var(--obs-deep); }
+
+  .favbar-btn { margin-top: 16px; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: rgba(0,0,0,.62); }
+  .favbar-btn:hover { color: var(--obs-dark); }
+  .favbar-btn .heartfill { fill: var(--obs); color: var(--obs); }
+  .favgrid { display: grid; gap: 16px; }
+  @media (min-width: 640px) { .favgrid { grid-template-columns: repeat(2, 1fr); } }
+  @media (min-width: 1280px) { .favgrid { grid-template-columns: repeat(3, 1fr); } }
+  .favitem { position: relative; }
+  .favitem > button { width: 100%; text-align: left; }
+  .thumb { overflow: hidden; background: var(--panel); }
+  .thumb.aspect-3x2 { aspect-ratio: 3/2; }
+  .thumb.deferred img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+  .favitem:hover .thumb.deferred img { transform: scale(1.03); }
+  .favcap { margin-top: 8px; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .favmeta { margin-top: 4px; font-size: 10px; letter-spacing: .06em; color: rgba(0,0,0,.45); }
+  .favdel { position: absolute; right: 8px; top: 8px; width: 32px; height: 32px; display: grid; place-items: center; background: rgba(244,241,234,.92); color: var(--obs-dark); backdrop-filter: blur(4px); }
+  .favdel:hover { background: #fff; }
+  .favdel svg { width: 16px; height: 16px; fill: currentColor; }
+
+  .archive-meta { font-size: 10px; letter-spacing: .13em; color: rgba(0,0,0,.5); display: flex; align-items: center; gap: 6px; }
+  .archive-count { margin-top: 8px; font-size: 14px; line-height: 1.5; color: rgba(0,0,0,.55); }
+  .btn-collect {
+    margin-top: 20px; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    border: 1px solid rgba(0,0,0,.15); background: rgba(255,255,255,.55); padding: 12px 16px;
+    font-size: 12px; font-weight: 600; letter-spacing: .06em; text-align: left; transition: border .15s, background .15s;
+  }
+  .btn-collect:hover { border-color: var(--obs); background: #fff; }
+  .btn-collect:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-collect .ico { display: inline-flex; align-items: center; gap: 8px; }
+  .btn-collect .ico span { color: var(--obs); }
+  .btn-sync { margin-top: 12px; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(0,0,0,.55); }
+  .btn-sync:hover { color: var(--obs); }
+  .btn-sync:disabled { opacity: .4; }
+  .sync-note { margin-top: 12px; font-size: 10px; letter-spacing: .08em; color: rgba(0,0,0,.4); }
+
+  .sheet-head { display: flex; flex-direction: column; gap: 20px; }
+  @media (min-width: 768px) { .sheet-head { flex-direction: row; align-items: flex-end; justify-content: space-between; } }
+  .sheet-kicker { font-size: 10px; letter-spacing: .13em; color: rgba(0,0,0,.45); }
+  .sheet-title { margin-top: 4px; font-size: 38px; letter-spacing: -.045em; font-weight: 600; }
+  .datewrap { width: 100%; color: rgba(0,0,0,.55); }
+  @media (min-width: 768px) { .datewrap { max-width: 280px; } }
+  .datefield { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(0,0,0,.2); padding-bottom: 8px; transition: border-color .2s; }
+  .datefield:focus-within { border-color: var(--obs); }
+  .datefield svg { width: 16px; height: 16px; flex-shrink: 0; }
+  .datefield input { width: 100%; background: transparent; border: none; outline: none; font-size: 14px; color: var(--ink); font-family: inherit; color-scheme: light; }
+  .date-hint { margin-top: 8px; font-size: 10px; letter-spacing: .04em; color: rgba(0,0,0,.42); }
+  .alertline { margin-top: 20px; display: flex; align-items: center; gap: 12px; border-left: 2px solid var(--obs); background: rgba(239,91,42,.06); padding: 12px 16px; font-size: 14px; color: rgba(0,0,0,.65); }
+  .alertline svg { width: 16px; height: 16px; color: var(--obs); flex-shrink: 0; }
+  .sheetbar { margin-top: 24px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid rgba(0,0,0,.1); border-bottom: 1px solid rgba(0,0,0,.1); padding: 12px 0; font-size: 10px; letter-spacing: .11em; color: rgba(0,0,0,.45); }
+  .sheetbar .msg { text-align: right; }
+  .gallery { margin-top: 24px; display: grid; gap: 32px 16px; grid-template-columns: 1fr; }
+  .gitem { position: relative; text-align: left; grid-column: span 1 / span 1; }
+  @media (min-width: 640px) {
+    .gallery { grid-template-columns: repeat(6, 1fr); }
+    .gitem { grid-column: span 3 / span 3; }
+    .gitem.feat { grid-column: span 6 / span 6; }
+  }
+  @media (min-width: 960px) {
+    .gitem { grid-column: span 3 / span 3; }
+    .gitem.feat { grid-column: span 6 / span 6; }
+  }
+  @media (min-width: 1280px) {
+    .gitem { grid-column: span 2 / span 2; }
+    .gitem.feat { grid-column: span 4 / span 4; }
+  }
+  .thumbbox { position: relative; overflow: hidden; background: var(--panel); aspect-ratio: 1.42; }
+  .gitem.feat .thumbbox { aspect-ratio: 1.78; }
+  .gitem .thumb.deferred img { transition: transform .5s; }
+  .gitem:hover .thumb.deferred img { transform: scale(1.04); }
+  .thumb-veil { position: absolute; inset: 0; background: rgba(0,0,0,0); transition: background .3s; }
+  .gitem:hover .thumb-veil { background: rgba(0,0,0,.2); }
+  .active-chk { position: absolute; right: 12px; bottom: 12px; width: 28px; height: 28px; border-radius: 50%; background: var(--obs); color: #fff; display: grid; place-items: center; }
+  .active-chk svg { width: 16px; height: 16px; }
+  .gcap { margin-top: 12px; }
+  .gcap .glabel { font-size: 18px; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gcap .gmeta { margin-top: 4px; font-size: 10px; letter-spacing: .04em; color: rgba(0,0,0,.48); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .gitem.feat .gcap .glabel { font-size: 18px; }
+  .emptyline { margin-top: 48px; border-left: 2px solid var(--obs); padding-left: 16px; font-size: 14px; line-height: 1.6; color: rgba(0,0,0,.55); }
+  .loading-card { animation: shimmer 1.4s infinite; }
+  .loading-card .th { aspect-ratio: 1.42; background: rgba(0,0,0,.1); }
+  .loading-card .ln { margin-top: 12px; width: 80%; height: 16px; background: rgba(0,0,0,.1); }
+  @keyframes shimmer { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+
+  footer { margin-top: 64px; border-top: 1px solid rgba(0,0,0,.1); padding-top: 20px; font-size: 12px; line-height: 1.6; color: rgba(0,0,0,.45); }
+  @media (min-width: 768px) { footer { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; } }
+  .footloc { margin-top: 16px; display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  @media (min-width: 768px) { .footloc { margin-top: 0; } }
+  .footloc svg { width: 14px; height: 14px; color: var(--obs); }
+
+  /* ---- Fullscreen viewer ---- */
+  .viewer { position: fixed; inset: 0; z-index: 70; background: #101312; overflow: hidden; }
+  .viewer img { width: 100%; height: 100%; object-fit: contain; }
+  .vclose { position: absolute; right: 20px; top: 20px; z-index: 30; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.35); color: #fff; backdrop-filter: blur(4px); }
+  .vclose:hover { background: rgba(0,0,0,.6); }
+  .vclose svg { width: 20px; height: 20px; }
+  .vinfo { position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 24px 24px; background: linear-gradient(transparent, rgba(0,0,0,.72)); color: #fff; }
+  .vdate { font-size: 10px; letter-spacing: .14em; color: rgba(255,255,255,.65); }
+  .vlabel { margin-top: 8px; max-width: 700px; font-size: 20px; letter-spacing: -.02em; }
+  @media (min-width: 768px) { .vinfo { padding: 80px 40px 36px; } .vlabel { font-size: 30px; } }
+  .vnav { position: absolute; top: 50%; transform: translateY(-50%); z-index: 20; width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.25); background: rgba(0,0,0,.3); color: #fff; backdrop-filter: blur(4px); }
+  .vnav:hover { background: rgba(0,0,0,.6); }
+  .vnav:disabled { opacity: .25; cursor: not-allowed; }
+  .vnav.l { left: 16px; } .vnav.r { right: 16px; }
+  @media (min-width: 768px) { .vnav { width: 56px; height: 56px; } .vnav.l { left: 32px; } .vnav.r { right: 32px; } }
+  .vnav svg { width: 24px; height: 24px; }
+  .hidden { display: none !important; }
+
+  .icon { display: inline-block; vertical-align: -2px; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="hwrap">
+      <a class="brand" href="#top">
+        <span class="brandmark"><svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffd4c4" stroke-width="1.6"><path d="M3 19h18M5 19V9l7-5 7 5v10"/></svg></span>
+        <span>
+          <span class="wordmark serif">北纬光廊</span>
+          <span class="subtag mono">BING WALLPAPER OBSERVATORY</span>
+        </span>
+      </a>
+      <div class="sync mono"><span id="syncDot" class="dot sync"></span><span id="syncLabel">正在同步</span></div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <img id="prevCover" class="cover-layer cover-held" alt="" aria-hidden="true" style="display:none"/>
+      <img id="heroCover" class="cover-layer cover-pending" alt="正在加载每日壁纸"/>
+      <div class="hero-shade"></div>
+      <div class="obs-corner"><div class="obs-badge mono"><span id="obsDate">OBS. 001 · 同步中</span></div></div>
+      <button id="zoomZone" class="cover-zoomzone" aria-label="全屏查看当前壁纸"></button>
+      <button id="navNewer" class="navbtn l" aria-label="查看较新的壁纸"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+      <button id="navOlder" class="navbtn r" aria-label="查看较早的壁纸"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+      <div id="coverLoader" class="cover-loader hidden"><span><i class="spin"></i>正在切换封面</span></div>
+      <div class="hero-content">
+        <div class="hero-inner">
+          <p id="heroDate" class="hero-date mono">正在加载</p>
+          <h2 id="heroTitle" class="hero-title serif">今日壁纸正在抵达</h2>
+          <div class="hero-actions">
+            <a id="btnDownload" class="btn-dl" href="#" download target="_blank" rel="noreferrer">
+              <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+              下载原图
+            </a>
+            <a id="btnSource" class="btn-link" href="#" target="_blank" rel="noreferrer">查看来源 <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg></a>
+            <button id="btnFav" class="btn-fav" aria-label="收藏当前壁纸"><svg class="icon heart" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7z"/></svg><span id="favLabel">收藏</span></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="container pt">
+      <!-- Story -->
+      <section class="sec" aria-labelledby="storyTitle">
+        <div class="sechead"><span class="mark"></span><p class="seclabel mono" id="storyKicker">IMAGE NOTE / —</p><h3 class="sec-title serif" id="storyTitle">这张照片的故事</h3></div>
+        <div class="sec-body secbody-pad">
+          <div class="kv">
+            <div><h4 class="mono">拍摄地点</h4><p id="locValue" class="place serif">正在读取地点信息</p></div>
+            <div><h4 class="mono">图片版权</h4><p id="creditValue" class="credit">正在读取版权信息</p></div>
+          </div>
+          <div class="story"><h4 class="mono">背后故事</h4><p id="storyValue">正在读取图片说明</p><a id="storySource" href="#" target="_blank" rel="noreferrer">查看原始图片条目 <svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg></a></div>
+        </div>
+      </section>
+
+      <!-- Favorites -->
+      <section id="favSection" class="sec" aria-labelledby="favTitle">
+        <div class="sechead"><span class="mark"></span><p class="seclabel mono" id="favKicker">FAVORITES / 00</p><h3 class="sec-title serif" id="favTitle">收藏夹</h3><button id="favToggle" class="favbar-btn"><svg class="icon heart" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7z"/></svg><span id="favToggleLabel">浏览收藏夹</span></button></div>
+        <div class="sec-body">
+          <div id="favClosed" class="secbody-pad"><p id="favHint" style="font-size:14px;line-height:1.75;color:rgba(0,0,0,.55)">在封面上点击"收藏"，将想留存的风景保存到此浏览器。</p></div>
+          <div id="favOpen" class="secbody-pad hidden">
+            <p id="favEmpty" style="font-size:14px;line-height:1.75;color:rgba(0,0,0,.55)">收藏夹还是空的。先在任意壁纸封面点击"收藏"吧。</p>
+            <div id="favGrid" class="favgrid" style="margin-top:16px"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Archive / gallery -->
+      <section class="sec">
+        <aside class="sechead">
+          <span class="mark"></span>
+          <div class="archive-meta mono"><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 5v14c0 1.66-4 3-9 3s-9-1.34-9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg> ARCHIVE / OBSERVATION</div>
+          <p id="archiveCount" class="archive-count">已收集 0 张壁纸</p>
+          <button id="btnCollect" class="btn-collect">
+            <span class="ico"><span class="obs">&#9732;</span> <span id="collectLabel">收存完整历史</span></span>
+            <span id="collectSpinner" class="spin hidden"></span><span id="collectArrow">›</span>
+          </button>
+          <button id="btnSyncNow" class="btn-sync"><svg class="icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8"/></svg> 更新今日记录</button>
+          <p id="syncNote" class="sync-note mono">SYNC / 等待第一则信号</p>
+        </aside>
+
+        <div class="sec-body" style="min-width:0">
+          <div class="sheet-head">
+            <div>
+              <p class="sheet-kicker mono" id="sheetKicker">CONTACT SHEET / 00 VIEWS</p>
+              <h2 class="sheet-title serif">近期观测</h2>
+            </div>
+            <div class="datewrap">
+              <label class="datefield">
+                <span class="mono">&#128197;</span>
+                <input type="date" id="dateInput" aria-label="选择日期查看壁纸" min="2010-01-01"/>
+              </label>
+              <p class="date-hint mono" id="dateHint">选择日期后自动切换封面 · 2010.01.01 起</p>
+            </div>
+          </div>
+
+          <div id="errorBox" class="alertline hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg><span id="errorText"></span></div>
+
+          <div class="sheetbar mono"><span id="sheetStatus">DATE / 选择日期自动切换封面</span><span id="sheetMsg" class="msg">INDEX / RECENT CONTACT SHEET</span></div>
+          <div id="gallery" class="gallery"></div>
+          <p id="emptyLine" class="emptyline hidden">正在建立壁纸档案。稍后可通过日期选择器查看指定日期。</p>
+        </div>
+      </section>
+
+      <footer>
+        <p style="max-width:640px">壁纸版权归原作者所有，按微软提示仅限用作壁纸。档案数据保存在当前浏览器。</p>
+        <div class="footloc"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg> Bing 每日壁纸 · 多地区历史</div>
+      </footer>
+    </div>
+  </main>
+</div>
+
+<!-- Fullscreen viewer -->
+<div id="viewer" class="viewer hidden">
+  <button id="viewerClose" class="vclose" aria-label="关闭全屏查看"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  <img id="viewerImg" src="" alt=""/>
+  <button id="viewerNewer" class="vnav l"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <button id="viewerOlder" class="vnav r"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
+  <div class="vinfo"><p id="viewerDate" class="vdate mono">DATE</p><p id="viewerLabel" class="vlabel serif"></p></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var ARCHIVE_KEY = "north-latitude-wallpaper-v1";
+  var SYNC_KEY = "north-latitude-wallpaper-sync-v1";
+  var FAVORITES_KEY = "north-latitude-wallpaper-favorites-v1";
+  var MIN_ARCHIVE_DATE = "2010-01-01";
+  var CN_ARCHIVE_START = "2024-04-03";
+  var EXTENDED_URL = "https://raw.githubusercontent.com/zenghongtu/bing-wallpaper/main/json/data.json";
+  var EARLY_URL = "https://bing.npanuhin.me/US-en.min.json";
+  var BASE = "https://bing.npanuhin.me";
+
+  var records = [];
+  var favorites = readJSON(FAVORITES_KEY, []);
+  var lastSynced = localStorage.getItem(SYNC_KEY);
+  var active = null;
+  var activeIndex = -1;
+  var isSyncing = false;
+  var isCollecting = false;
+  var favoritesOpen = false;
+  var dateMessage = "";
+  var errorMsg = "";
+  var coverCache = {};
+  var displayedCover = null;
+  var viewerOpen = false;
+  var touchStartX = null;
+
+  // ---------- DOM ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var heroCover = $("heroCover"), prevCover = $("prevCover");
+
+  // ---------- helpers ----------
+  function readJSON(key, fallback) { try { var v = JSON.parse(localStorage.getItem(key) || "null"); return v == null ? fallback : v; } catch (e) { return fallback; } }
+  function writeJSON(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+
+  function upgradeUrl(item) {
+    if (item.url.indexOf("bingw.jasonzeng.dev") >= 0 && item.bing_url && item.bing_url.indexOf("bing.com/th?") >= 0) {
+      item = Object.assign({}, item, { url: item.bing_url.replace("_UHD.jpg", "_1920x1080.jpg") });
+    }
+    return item;
+  }
+  function readArchive() {
+    var arr = readJSON(ARCHIVE_KEY, []);
+    if (!Array.isArray(arr)) return [];
+    return arr.map(upgradeUrl).filter(function (it) { return it && it.date && it.url; });
+  }
+  function merge(listA, listB) {
+    var map = new Map();
+    listA.forEach(function (it) { if (it && it.date) map.set(it.date, it); });
+    listB.forEach(function (it) { if (it && it.date && it.url) map.set(it.date, it); });
+    return Array.from(map.values()).sort(function (a, b) { return b.date.localeCompare(a.date); });
+  }
+  function commit(items) { records = merge([], items); localStorage.setItem(ARCHIVE_KEY, JSON.stringify(records)); }
+
+  function formatDate(date, long) {
+    if (!date) return "";
+    var p = date.split("-");
+    var d = new Date(+p[0], +p[1] - 1, +p[2]);
+    return d.toLocaleDateString("zh-CN", long ? { year: "numeric", month: "long", day: "numeric", weekday: "long" } : { month: "short", day: "numeric" });
+  }
+  function getLabel(it) { return it.caption || it.title || it.subtitle || "Bing 每日影像"; }
+  function getPlace(it) {
+    var src = (it.copyright || "").trim();
+    var loc = src.split("(©")[0].trim().replace(/[，,。.]$/, "");
+    if (loc && !loc.startsWith("©")) return loc;
+    var desc = (it.description || "").trim();
+    var m = desc.match(/(?:在|位于)?([^，。；]{2,50}(?:国家公园|山脉|运河|海峡|海湾|海岸|海域|湖泊|湖|岛屿|岛|城市|森林|沙漠|瀑布|平原|谷地))/);
+    if (m && m[1]) return m[1].replace(/^(?:在|位于)/, "").trim();
+    return (it.subtitle || "").trim() || "地点信息未提供";
+  }
+  function getCredit(it) {
+    var src = (it.copyright || "").trim();
+    var m = src.match(/\(©\s*([^)]+)\)/);
+    return (m && m[1] ? m[1] : src.replace(/^©\s*/, "")).trim() || "版权信息未提供";
+  }
+  function getStory(it) {
+    if (it.description && it.description.trim()) return it.description.trim();
+    if (it.subtitle && it.subtitle.trim() && it.subtitle !== getLabel(it)) return it.subtitle.trim();
+    return "此历史记录未提供详细图注。可通过图片来源查看原始 Bing 条目与版权信息。";
+  }
+  function previewUrl(it) {
+    if (it.bing_url && it.bing_url.indexOf("_UHD.jpg") >= 0) return it.bing_url.replace("_UHD.jpg", "_1920x1080.jpg");
+    return it.url;
+  }
+  /* 平板/视网膜屏（设备像素比>=1.4）直接加载 UHD 超清原图，其余设备保持 1080p 预览，兼顾清晰与流畅 */
+  function bestPreviewUrl(it) {
+    var full = it.bing_url || (it.url && it.url.indexOf("_1920x1080") >= 0 ? it.url.replace("_1920x1080.jpg", "_UHD.jpg") : it.url);
+    var hiDpi = (window.devicePixelRatio || 1) >= 1.4;
+    return hiDpi ? full : previewUrl(it);
+  }
+  function pad(n) { return String(n).padStart(2, "0"); }
+
+  // ---------- fetch ----------
+  async function fetchYear(year) {
+    var res = await fetch(BASE + "/CN-zh." + year + ".min.json", { cache: "no-store" });
+    if (!res.ok) throw new Error(year + " 年索引暂不可用");
+    var data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.filter(function (it) { return it && typeof it === "object" && it.date && it.url; });
+  }
+  function normalizeExtended(it) {
+    if (!/^\d{8}$/.test(it.startdate || "")) return null;
+    var raw = it.startdate;
+    var date = raw.slice(0, 4) + "-" + raw.slice(4, 6) + "-" + raw.slice(6, 8);
+    var url = it.url || (it.urlbase ? "https://www.bing.com" + it.urlbase + "_1920x1080.jpg" : "https://bingw.jasonzeng.dev/?date=" + raw + "&resolution=1920x1080");
+    return { date: date, title: it.title || "Bing 每日影像", caption: it.title || null, copyright: it.copyright || null, url: url, bing_url: it.urlbase ? "https://www.bing.com" + it.urlbase + "_UHD.jpg" : url };
+  }
+  async function fetchExtended() {
+    var res = await fetch(EXTENDED_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("扩展历史索引暂不可用");
+    var data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map(normalizeExtended).filter(Boolean);
+  }
+  async function fetchEarly() {
+    var res = await fetch(EARLY_URL, { cache: "no-store" });
+    if (!res.ok) throw new Error("早期历史索引暂不可用");
+    var data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.filter(function (it) { return it && it.date && it.date < "2019-03-09" && it.url; })
+      .map(function (it) { return { date: it.date, title: it.title, caption: it.caption, subtitle: it.subtitle, copyright: it.copyright, url: it.url, bing_url: it.bing_url }; });
+  }
+
+  // ---------- cover ----------
+  function preload(url, cb) { if (coverCache[url]) { if (cb) cb(); return; } var im = new Image(); im.decoding = "async"; im.onload = function () { coverCache[url] = true; if (cb) cb(); }; im.onerror = function () { coverCache[url] = true; if (cb) cb(); }; im.src = url; }
+
+  function switchCover(wallpaper, msg) {
+    if (!wallpaper) return;
+    var url = wallpaper.url;
+    setActive(wallpaper);
+    if (msg) { dateMessage = msg; }
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }
+  function setActive(w) {
+    active = w;
+    activeIndex = records.findIndex(function (it) { return it.date === w.date; });
+    if (!coverCache[w.url]) {
+      showLoader(true);
+      preload(w.url, function () { if (active && active.date === w.date) { showLoader(false); reveal(w.url); } });
+    } else {
+      reveal(w.url);
+    }
+  }
+  function reveal(url) {
+    if (url === displayedCover) { renderBody(); return; }
+    var outgoing = displayedCover;
+    if (outgoing) { prevCover.style.display = ""; prevCover.src = outgoing; prevCover.className = "cover-layer cover-exit"; }
+    displayedCover = url;
+    heroCover.src = url;
+    heroCover.className = "cover-layer cover-pending";
+    // delay enter animation a frame so the image can begin
+    requestAnimationFrame(function () {
+      heroCover.className = "cover-layer cover-enter";
+    });
+    setTimeout(function () { prevCover.style.display = "none"; }, 350);
+    renderBody();
+  }
+  function showLoader(show) { $("coverLoader").classList.toggle("hidden", !show); }
+
+  // ---------- render ----------
+  function renderBody() {
+    if (!active) {
+      $("heroDate").textContent = "正在加载";
+      $("heroTitle").textContent = "今日壁纸正在抵达";
+      return;
+    }
+    var date = active.date;
+    $("heroDate").textContent = formatDate(date);
+    $("heroTitle").textContent = getLabel(active);
+    $("obsDate").textContent = "OBS. 001 · " + date.replace(/-/g, ".");
+    $("storyKicker").textContent = "IMAGE NOTE / " + date.replace(/-/g, ".");
+    $("locValue").textContent = getPlace(active);
+    $("creditValue").textContent = getCredit(active);
+    $("storyValue").textContent = getStory(active);
+    $("btnDownload").href = active.url;
+    if (active.bing_url) { $("btnSource").href = active.bing_url; $("btnSource").style.display = ""; $("storySource").href = active.bing_url; } else { $("btnSource").style.display = "none"; $("storySource").style.display = "none"; }
+    var fav = favorites.indexOf(date) >= 0;
+    $("favLabel").textContent = fav ? "已收藏" : "收藏";
+    $("btnFav").classList.toggle("on", fav);
+    $("btnFav").querySelector(".heart").setAttribute("fill", fav ? "currentColor" : "none");
+    // nav
+    $("navNewer").disabled = !records[activeIndex - 1];
+    $("navOlder").disabled = !records[activeIndex + 1];
+    $("dateInput").max = records[0] ? records[0].date : new Date().toISOString().slice(0, 10);
+    // status
+    $("sheetStatus").textContent = (isSyncing || collectingNow()) ? "DATE / 正在切换所选封面…" : "DATE / 选择日期自动切换封面";
+    $("sheetMsg").textContent = dateMessage || "INDEX / RECENT CONTACT SHEET";
+    $("sheetKicker").textContent = "CONTACT SHEET / " + pad(records.slice(0, 6).length) + " VIEWS";
+    $("archiveCount").textContent = "已收集 " + records.length.toLocaleString("zh-CN") + " 张壁纸";
+  }
+  function collectingNow() { return false; }
+
+  function renderGallery() {
+    var g = $("gallery");
+    var items = isSyncing && !records.length ? [null, null, null, null, null, null] : records.slice(0, 6);
+    g.innerHTML = "";
+    items.forEach(function (item, index) {
+      var el = document.createElement("button");
+      if (!item) { el.className = "gitem loading-card"; el.setAttribute("disabled", ""); el.innerHTML = '<div class="th"></div><div class="ln"></div>'; g.appendChild(el); return; }
+      var feat = index === 0;
+      el.className = "gitem" + (feat ? " feat" : "");
+      el.style.textAlign = "left";
+      el.onclick = function () { switchCover(item, formatDate(item.date, false) + " 的壁纸已切换到封面"); };
+      var activeChk = item.date === active.date ? '<span class="active-chk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>' : "";
+      var meta = "DATE / " + item.date.replace(/-/g, ".") + " · INDEX / " + pad(index + 1) + (feat ? " · LEAD / " + getPlace(item) : "");
+      el.innerHTML = '<div class="thumbbox"><div class="thumb deferred aspect-3x2" data-src="' + esc(bestPreviewUrl(item)) + '" data-alt="' + esc(getLabel(item)) + '"></div><div class="thumb-veil"></div>' + activeChk + '</div><div class="gcap"><p class="glabel serif">' + esc(getLabel(item)) + '</p><p class="gmeta mono">' + esc(meta) + '</p></div>';
+      g.appendChild(el);
+    });
+    setupLazy();
+    renderFavorites();
+  }
+  var gObserve = null;
+  function setupLazy() {
+    if (typeof IntersectionObserver === "undefined") { document.querySelectorAll(".thumb.deferred").forEach(function (t) { fillThumb(t); }); return; }
+    if (!gObserve) {
+      gObserve = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { if (e.isIntersecting) { fillThumb(e.target); gObserve.unobserve(e.target); } });
+      }, { rootMargin: "520px 0px" });
+    }
+    document.querySelectorAll(".thumb.deferred").forEach(function (t) { gObserve.observe(t); });
+  }
+  function fillThumb(t) {
+    if (t.dataset.done) return;
+    t.dataset.done = "1";
+    var img = document.createElement("img");
+    img.loading = "lazy"; img.decoding = "async";
+    img.alt = t.dataset.alt || "";
+    img.src = t.dataset.src;
+    img.onerror = function () { img.style.visibility = "hidden"; img.src = "about:blank"; };
+    t.innerHTML = "";
+    t.appendChild(img);
+  }
+
+  function renderFavorites() {
+    $("favKicker").textContent = "FAVORITES / " + pad(favorites.length);
+    var grid = $("favGrid");
+    grid.innerHTML = "";
+    $("favEmpty").classList.toggle("hidden", favorites.length > 0);
+    grid.style.display = favorites.length ? "" : "none";
+    favorites.forEach(function (date) {
+      var w = records.find(function (it) { return it.date === date; });
+      if (!w) return;
+      var it = document.createElement("article");
+      it.className = "favitem";
+      var btn = document.createElement("button");
+      btn.onclick = function () { switchCover(w, formatDate(w.date, false) + " 的收藏已切换到封面"); };
+      btn.innerHTML = '<div class="thumb deferred aspect-3x2" data-src="' + esc(bestPreviewUrl(w)) + '" data-alt="' + esc(getLabel(w)) + '"></div><p class="favcap serif">' + esc(getLabel(w)) + "</p><p class=\"favmeta mono\">DATE / " + w.date.replace(/-/g, ".") + "</p>";
+      var del = document.createElement("button");
+      del.className = "favdel"; del.setAttribute("aria-label", "取消收藏 " + getLabel(w));
+      del.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7z"/></svg>';
+      del.onclick = function (e) { e.stopPropagation(); toggleFavorite(date); };
+      it.appendChild(btn); it.appendChild(del);
+      grid.appendChild(it);
+    });
+    setupLazy();
+  }
+
+  // ---------- favorites ----------
+  function toggleFavorite(date) {
+    var i = favorites.indexOf(date);
+    if (i >= 0) favorites.splice(i, 1); else favorites.unshift(date);
+    writeJSON(FAVORITES_KEY, favorites);
+    renderBody(); renderGallery();
+  }
+
+  // ---------- actions ----------
+  function syncLatest() {
+    isSyncing = true; setSyncUI(); renderBody();
+    fetchYear(new Date().getFullYear()).then(function (latest) {
+      commit(merge(records, latest));
+      if (!active && records[0]) switchCover(records[0], "");
+      var now = new Date().toISOString();
+      localStorage.setItem(SYNC_KEY, now); lastSynced = now;
+      if (!active && records[0]) setActive(records[0]);
+      renderBody(); renderGallery();
+    }).catch(function () { errorMsg = "同步未完成，请检查网络后重试。"; renderError(); })
+      .finally(function () { isSyncing = false; setSyncUI(); renderBody(); });
+  }
+  function collectAllHistory() {
+    if (records.some(function (it) { return it.date <= "2010-01-02"; })) {
+      setNote("完整历史档案已经收存"); setTimeout(function () { if (lastSynced) setNote("SYNC / " + fmtTime(lastSynced)); }, 2600);
+      return;
+    }
+    isCollecting = true; renderError(); setSyncUI();
+    $("collectLabel").textContent = "正在收存";
+    $("collectSpinner").classList.remove("hidden"); $("collectArrow").classList.add("hidden");
+    setNote("正在收存 2010 年起的完整影像目录");
+    fetchExtended().then(function (ext) {
+      setNote("正在补齐 2010–2019 年的早期影像目录");
+      return fetchEarly().then(function (early) { return merge(early, merge(ext, records)); });
+    }).then(function (merged) {
+      commit(merged);
+      if (!active && merged[0]) setActive(merged[0]);
+      renderBody(); renderGallery();
+      setNote("已收存 " + merged.length.toLocaleString("zh-CN") + " 张壁纸");
+      setTimeout(function () { if (lastSynced) setNote("SYNC / " + fmtTime(lastSynced)); }, 3200);
+    }).catch(function () {
+      errorMsg = "扩展历史目录暂时无法读取，请稍后重试。"; renderError();
+    }).finally(function () {
+      isCollecting = false; $("collectLabel").textContent = "收存完整历史";
+      $("collectSpinner").classList.add("hidden"); $("collectArrow").classList.remove("hidden");
+      setSyncUI();
+    });
+  }
+  async function selectDate(value) {
+    dateMessage = "";
+    if (!value) { renderBody(); return; }
+    if (value < MIN_ARCHIVE_DATE) { dateMessage = "当前档案最早可查至 " + formatDate(MIN_ARCHIVE_DATE, false); renderBody(); return; }
+    var cached = records.find(function (it) { return it.date === value; });
+    if (cached) { switchCover(cached, formatDate(cached.date, false) + " 的壁纸已切换到封面"); renderBody(); renderGallery(); return; }
+    showLoader(true);
+    try {
+      var year = Number(value.slice(0, 4));
+      var entries = value >= CN_ARCHIVE_START ? await fetchYear(year) : (value >= "2019-03-09" ? await fetchExtended() : await fetchEarly());
+      commit(merge(entries, records));
+      var sel = records.find(function (it) { return it.date === value; });
+      renderBody(); renderGallery();
+      if (sel) { switchCover(sel, formatDate(sel.date, false) + " 的壁纸已切换到封面"); }
+      else { dateMessage = "这一天没有可用的 Bing 壁纸记录"; renderBody(); }
+    } catch (e) { dateMessage = "暂时无法读取该年份的壁纸记录"; renderBody(); }
+    showLoader(false);
+  }
+
+  function navigate(dir, fromViewer) {
+    var cur = fromViewer ? records.find(function (it) { return it.date === viewerDate; }) : active;
+    var idx = records.findIndex(function (it) { return it.date === cur.date; });
+    var target = dir === "newer" ? records[idx - 1] : records[idx + 1];
+    if (!target) return;
+    if (fromViewer) { openViewerInternal(target); return; }
+    switchCover(target, formatDate(target.date, false) + " 的壁纸已切换到封面");
+    renderGallery();
+  }
+
+  // viewer
+  var viewerDate = null;
+  function openViewer() {
+    if (!active) return;
+    viewerDate = active.date;
+    openViewerInternal(active);
+  }
+  function openViewerInternal(w) {
+    viewerDate = w.date;
+    $("viewerImg").src = w.url;
+    $("viewerImg").alt = getLabel(w);
+    $("viewerDate").textContent = "DATE / " + w.date.replace(/-/g, ".");
+    $("viewerLabel").textContent = getLabel(w);
+    var idx = records.findIndex(function (it) { return it.date === w.date; });
+    $("viewerNewer").disabled = !records[idx - 1];
+    $("viewerOlder").disabled = !records[idx + 1];
+    if (!viewerOpen) { viewerOpen = true; $("viewer").classList.remove("hidden"); document.body.style.overflow = "hidden"; }
+  }
+  function closeViewer() { viewerOpen = false; $("viewer").classList.add("hidden"); document.body.style.overflow = ""; }
+
+  // ---------- misc UI ----------
+  function setSyncUI() {
+    var dot = $("syncDot"), lab = $("syncLabel");
+    if (isSyncing || isCollecting) { dot.classList.add("sync"); lab.textContent = isCollecting ? "正在收存" : "正在同步"; }
+    else { dot.classList.remove("sync"); lab.textContent = "已更新"; }
+    $("btnCollect").disabled = isCollecting || isSyncing;
+    $("btnSyncNow").disabled = isSyncing || isCollecting;
+  }
+  function setNote(t) { $("syncNote").textContent = t; }
+  function fmtTime(iso) { try { return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso)); } catch (e) { return ""; } }
+  function renderError() {
+    var box = $("errorBox");
+    if (errorMsg) { box.classList.remove("hidden"); $("errorText").textContent = errorMsg; }
+    else box.classList.add("hidden");
+  }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
+  // ---------- events ----------
+  $("btnFav").addEventListener("click", function () { if (active) { toggleFavorite(active.date); } });
+  $("navNewer").addEventListener("click", function () { navigate("newer"); });
+  $("navOlder").addEventListener("click", function () { navigate("older"); });
+  $("zoomZone").addEventListener("click", openViewer);
+  $("viewerClose").addEventListener("click", closeViewer);
+  $("viewerNewer").addEventListener("click", function () { navigate("newer", true); });
+  $("viewerOlder").addEventListener("click", function () { navigate("older", true); });
+  $("btnSyncNow").addEventListener("click", syncLatest);
+  $("btnCollect").addEventListener("click", collectAllHistory);
+  $("dateInput").addEventListener("change", function (e) { selectDate(e.target.value); });
+  $("favToggle").addEventListener("click", function () {
+    favoritesOpen = !favoritesOpen;
+    $("favOpen").classList.toggle("hidden", !favoritesOpen);
+    $("favClosed").classList.toggle("hidden", favoritesOpen);
+    $("favToggleLabel").textContent = favoritesOpen ? "收起收藏夹" : "浏览收藏夹";
+    if (favoritesOpen) renderFavorites();
+  });
+  $("viewer").addEventListener("touchstart", function (e) { touchStartX = e.changedTouches[0] ? e.changedTouches[0].clientX : null; });
+  $("viewer").addEventListener("touchend", function (e) {
+    var start = touchStartX, end = e.changedTouches[0] ? e.changedTouches[0].clientX : null;
+    touchStartX = null;
+    if (start == null || end == null || Math.abs(end - start) < 42) return;
+    navigate(end > start ? "newer" : "older", true);
+  });
+  window.addEventListener("keydown", function (e) {
+    if (viewerOpen) {
+      if (e.key === "Escape") closeViewer();
+      else if (e.key === "ArrowLeft") { e.preventDefault(); navigate("newer", true); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); navigate("older", true); }
+    }
+  });
+
+  // ---------- init ----------
+  function init() {
+    records = readArchive();
+    favorites = readJSON(FAVORITES_KEY, []);
+    lastSynced = localStorage.getItem(SYNC_KEY);
+    setNote(lastSynced ? "SYNC / " + fmtTime(lastSynced) : "SYNC / 等待第一则信号");
+    renderGallery(); renderFavorites();
+    if (records.length) {
+      setActive(records[0]);
+      $("dateInput").value = records[0].date;
+    } else {
+      renderBody();
+    }
+    setSyncUI();
+    syncLatest();
+  }
+  init();
+})();
+</script>
+</body>
+</html>
