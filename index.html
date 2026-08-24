@@ -815,19 +815,19 @@
   function init() {
     records = readArchive();
     favorites = readJSON(FAVORITES_KEY, []);
-    lastSynced = localStorage.getItem(SYNC_KEY);
-    setNote(lastSynced ? "SYNC / " + fmtTime(lastSynced) : "SYNC / 等待第一则信号");
-    renderGallery(); renderFavorites();
-    if (records.length) {
-      setActive(records[0]);
-      $("dateInput").value = records[0].date;
-      setSyncUI();
-      syncLatest();
-    } else {
-      renderBody();
-      setSyncUI();
-      seedArchiveThenSync();
+    try { lastSynced = localStorage.getItem(SYNC_KEY); } catch (e) { lastSynced = null; }
+    try { setNote(lastSynced ? "SYNC / " + fmtTime(lastSynced) : "SYNC / 等待第一则信号"); } catch (e) {}
+    try { renderGallery(); } catch (e) {}
+    try { renderFavorites(); } catch (e) {}
+    try { setSyncUI(); } catch (e) {}
+    if (records.length && records[0]) {
+      try { setActive(records[0]); } catch (e) {}
+      try { $("dateInput").value = records[0].date; } catch (e) {}
+      try { syncLatest(); } catch (e) {}
+      return;
     }
+    try { renderBody(); } catch (e) {}
+    seedArchiveThenSync();
   }
   // 冷启动：先读同源完整档案（与页面同域名，iPad 只要打得开页面就一定载得进），再尝试实时刷新
   function seedArchiveThenSync() {
@@ -836,17 +836,20 @@
         if (Array.isArray(list) && list.length) commit(merge([], list));
         if (!records.length) return;
         if (!active || !records.some(function (r) { return r.date === active.date; })) setActive(records[0]);
-        $("dateInput").value = records[0].date;
+        try { $("dateInput").value = records[0].date; } catch (e) {}
         renderBody(); renderGallery();
-        setNote("已载入完整档案 " + records.length.toLocaleString("zh-CN") + " 天");
-      }).catch(function () {})
-      .finally(function () { setSyncUI(); syncLatest(); });
+        try { setNote("已载入完整档案 " + records.length.toLocaleString("zh-CN") + " 天"); } catch (e) {}
+      }).catch(function (e) {
+        if (e) try { setNote("本地档案读取异常：" + (e && e.message ? e.message : e)); } catch (_) {}
+      })
+      .finally(function () { try { setSyncUI(); } catch (e) {} syncLatest(); });
   }
   window.addEventListener("error", function () {
     try { var l = $("syncLabel"); if (l) { l.textContent = "脚本出错 · 浏览器过旧或不兼容，请升级系统/浏览器后重试"; l.style.color = "#ff5a3c"; } } catch (_) {}
   });
   try { init(); } catch (e) {
-    try { var l2 = $("syncLabel"); if (l2) { l2.textContent = "页面加载出错：" + (e && e.message ? e.message : "未知错误"); l2.style.color = "#ff5a3c"; } } catch (_) {}
+    try { var l2 = $("syncLabel"); if (l2) { l2.textContent = "页面加载出错：" + (e && (e.message || e) ? e.message : e || "未知错误"); l2.style.color = "#ff5a3c"; } } catch (_) {}
+    try { seedArchiveThenSync(); } catch (_) {}
   }
 })();
 </script>
