@@ -491,8 +491,13 @@
   function pad(n) { return String(n).padStart(2, "0"); }
 
   // ---------- fetch ----------
+  function fetchWithTimeout(url, ms) {
+    var ctrl = ("AbortController" in window) ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, ms);
+    return fetch(url, { cache: "no-store", signal: ctrl ? ctrl.signal : undefined }).finally(function () { clearTimeout(timer); });
+  }
   async function fetchYear(year) {
-    var res = await fetch(BASE + "/CN-zh." + year + ".min.json", { cache: "no-store" });
+    var res = await fetchWithTimeout(BASE + "/CN-zh." + year + ".min.json", 15000);
     if (!res.ok) throw new Error(year + " 年索引暂不可用");
     var data = await res.json();
     if (!Array.isArray(data)) return [];
@@ -506,14 +511,14 @@
     return { date: date, title: it.title || "Bing 每日影像", caption: it.title || null, copyright: it.copyright || null, url: url, bing_url: it.urlbase ? "https://www.bing.com" + it.urlbase + "_UHD.jpg" : url };
   }
   async function fetchExtended() {
-    var res = await fetch(EXTENDED_URL, { cache: "no-store" });
+    var res = await fetchWithTimeout(EXTENDED_URL, 15000);
     if (!res.ok) throw new Error("扩展历史索引暂不可用");
     var data = await res.json();
     if (!Array.isArray(data)) return [];
     return data.map(normalizeExtended).filter(Boolean);
   }
   async function fetchEarly() {
-    var res = await fetch(EARLY_URL, { cache: "no-store" });
+    var res = await fetchWithTimeout(EARLY_URL, 15000);
     if (!res.ok) throw new Error("早期历史索引暂不可用");
     var data = await res.json();
     if (!Array.isArray(data)) return [];
@@ -819,7 +824,12 @@
     setSyncUI();
     syncLatest();
   }
-  init();
+  window.addEventListener("error", function () {
+    try { var l = $("syncLabel"); if (l) { l.textContent = "脚本出错 · 浏览器过旧或不兼容，请升级系统/浏览器后重试"; l.style.color = "#ff5a3c"; } } catch (_) {}
+  });
+  try { init(); } catch (e) {
+    try { var l2 = $("syncLabel"); if (l2) { l2.textContent = "页面加载出错：" + (e && e.message ? e.message : "未知错误"); l2.style.color = "#ff5a3c"; } } catch (_) {}
+  }
 })();
 </script>
 </body>
